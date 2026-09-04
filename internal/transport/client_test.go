@@ -22,7 +22,7 @@ func TestClient_Do(t *testing.T) {
 
 	defer server.Close()
 
-	client := NewClient(http.DefaultClient, server.URL)
+	client := NewClient(http.DefaultClient, server.URL, &mockAuthenticator{})
 
 	var response struct {
 		Balance string `json:"balance"`

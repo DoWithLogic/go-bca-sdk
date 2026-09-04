@@ -41,6 +41,12 @@ func (c *Client) Do(ctx context.Context, method string, path string, body any, r
 		req.Header.Set("Content-Type", "application/json")
 	}
 
+	if c.auth != nil {
+		if err := c.auth.Authenticate(ctx, req); err != nil {
+			return err
+		}
+	}
+
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("execute request: %w", err)

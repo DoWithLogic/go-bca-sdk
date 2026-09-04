@@ -37,27 +37,12 @@ func NewOAuth2Authenticator(clientID, clientSecret string, httpClient *http.Clie
 
 // Authenticate authenticates the HTTP request using the BCA OAuth 2.0 authentication flow.
 func (a *OAuth2Authenticator) Authenticate(ctx context.Context, req *http.Request) error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	if a.token != nil && a.now().Before(a.token.expiresAt) {
-		req.Header.Set("Authorization", fmt.Sprintf("%s %s", a.token.tokenType, a.token.accessToken))
-
-		return nil
-	}
-
-	tokenResponse, err := a.getAccessToken(ctx)
+	token, err := a.getToken(ctx)
 	if err != nil {
 		return err
 	}
 
-	a.token = &token{
-		accessToken: tokenResponse.AccessToken,
-		tokenType:   tokenResponse.TokenType,
-		expiresAt:   a.now().Add(time.Duration(tokenResponse.ExpiresIn) * time.Second),
-	}
-
-	req.Header.Set("Authorization", fmt.Sprintf("%s %s", tokenResponse.TokenType, tokenResponse.AccessToken))
+	req.Header.Set("Authorization", token.tokenType+" "+token.accessToken)
 
 	return nil
 }
@@ -88,6 +73,28 @@ func (a *OAuth2Authenticator) getAccessToken(ctx context.Context) (*tokenRespons
 	}
 
 	return &token, nil
+}
+
+func (a *OAuth2Authenticator) getToken(ctx context.Context) (*token, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if a.token != nil && a.now().Before(a.token.expiresAt) {
+		return a.token, nil
+	}
+
+	tokenResponse, err := a.getAccessToken(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	a.token = &token{
+		accessToken: tokenResponse.AccessToken,
+		tokenType:   tokenResponse.TokenType,
+		expiresAt:   a.now().Add(time.Duration(tokenResponse.ExpiresIn) * time.Second),
+	}
+
+	return a.token, nil
 }
 
 type tokenResponse struct {
