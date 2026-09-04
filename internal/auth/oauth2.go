@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
+	"time"
 )
 
 // OAuth2Authenticator authenticates HTTP requests using BCA OAuth 2.0 authentication.
@@ -17,6 +19,10 @@ type OAuth2Authenticator struct {
 	clientSecret string
 	tokenURL     string
 	httpClient   *http.Client
+
+	now   func() time.Time
+	mu    sync.Mutex
+	token *token
 }
 
 func NewOAuth2Authenticator(clientID, clientSecret string, httpClient *http.Client, tokenURL string) *OAuth2Authenticator {
@@ -25,17 +31,33 @@ func NewOAuth2Authenticator(clientID, clientSecret string, httpClient *http.Clie
 		clientSecret: clientSecret,
 		httpClient:   httpClient,
 		tokenURL:     tokenURL,
+		now:          time.Now,
 	}
 }
 
 // Authenticate authenticates the HTTP request using the BCA OAuth 2.0 authentication flow.
 func (a *OAuth2Authenticator) Authenticate(ctx context.Context, req *http.Request) error {
-	token, err := a.getAccessToken(ctx)
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if a.token != nil && a.now().Before(a.token.expiresAt) {
+		req.Header.Set("Authorization", fmt.Sprintf("%s %s", a.token.tokenType, a.token.accessToken))
+
+		return nil
+	}
+
+	tokenResponse, err := a.getAccessToken(ctx)
 	if err != nil {
 		return err
 	}
 
-	req.Header.Set("Authorization", fmt.Sprintf("%s %s", token.TokenType, token.AccessToken))
+	a.token = &token{
+		accessToken: tokenResponse.AccessToken,
+		tokenType:   tokenResponse.TokenType,
+		expiresAt:   a.now().Add(time.Duration(tokenResponse.ExpiresIn) * time.Second),
+	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("%s %s", tokenResponse.TokenType, tokenResponse.AccessToken))
 
 	return nil
 }
@@ -72,4 +94,10 @@ type tokenResponse struct {
 	AccessToken string `json:"access_token"`
 	TokenType   string `json:"token_type"`
 	ExpiresIn   int    `json:"expires_in"`
+}
+
+type token struct {
+	accessToken string
+	tokenType   string
+	expiresAt   time.Time
 }

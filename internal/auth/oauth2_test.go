@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sync"
 	"testing"
+	"time"
 )
 
 func TestOAuth2Authenticator_Authenticate(t *testing.T) {
@@ -151,5 +153,159 @@ func TestOAuth2Authenticator_GetAccessToken_Unauthorized(t *testing.T) {
 
 	if err.Error() != expected {
 		t.Errorf("expected error %q, got %q", expected, err.Error())
+	}
+}
+
+func TestOAuth2Authenticator_Authenticate_ReusesValidToken(t *testing.T) {
+	var tokenRequests int
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tokenRequests++
+
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{
+			"access_token": "test-token",
+			"token_type": "Bearer",
+			"expires_in": 3600
+		}`)
+	}))
+	defer server.Close()
+
+	authenticator := NewOAuth2Authenticator("client-id", "client-secret", server.Client(), server.URL)
+
+	for range 3 {
+		req, err := http.NewRequest(
+			http.MethodGet,
+			"https://api.klikbca.com/api/oauth/token",
+			nil,
+		)
+		if err != nil {
+			t.Fatalf("failed to create request: %v", err)
+		}
+
+		if err := authenticator.Authenticate(context.Background(), req); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if got := req.Header.Get("Authorization"); got != "Bearer test-token" {
+			t.Errorf("expected Authorization %q, got %q", "Bearer test-token", got)
+		}
+	}
+
+	if tokenRequests != 1 {
+		t.Errorf("expected 1 token request, got %d", tokenRequests)
+	}
+}
+
+func TestOAuth2Authenticator_Authenticate_RefreshesExpiredToken(t *testing.T) {
+	var tokenRequests int
+	currentTime := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tokenRequests++
+
+		w.Header().Set("Content-Type", "application/json")
+
+		fmt.Fprintf(w, `{
+			"access_token": "token-%d",
+			"token_type": "Bearer",
+			"expires_in": 1
+		}`, tokenRequests)
+	}))
+	defer server.Close()
+
+	authenticator := NewOAuth2Authenticator("client-id", "client-secret", server.Client(), server.URL)
+	authenticator.now = func() time.Time {
+		return currentTime
+	}
+
+	req1, err := http.NewRequest(http.MethodGet, "https://api.klikbca.com/api/oauth/token", nil)
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
+
+	if err := authenticator.Authenticate(context.Background(), req1); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if got := req1.Header.Get("Authorization"); got != "Bearer token-1" {
+		t.Errorf("expected Authorization %q, got %q", "Bearer token-1", got)
+	}
+
+	currentTime = currentTime.Add(1100 * time.Millisecond)
+
+	req2, err := http.NewRequest(http.MethodGet, "https://api.klikbca.com/api/oauth/token", nil)
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
+
+	if err := authenticator.Authenticate(context.Background(), req2); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if got := req2.Header.Get("Authorization"); got != "Bearer token-2" {
+		t.Errorf("expected Authorization %q, got %q", "Bearer token-2", got)
+	}
+
+	if tokenRequests != 2 {
+		t.Errorf("expected 2 token requests, got %d", tokenRequests)
+	}
+}
+
+func TestOAuth2Authenticator_Authenticate_Concurrent(t *testing.T) {
+	var tokenRequests int
+	var mu sync.Mutex
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		tokenRequests++
+		mu.Unlock()
+
+		w.Header().Set("Content-Type", "application/json")
+
+		fmt.Fprint(w, `{
+			"access_token": "test-token",
+			"token_type": "Bearer",
+			"expires_in": 3600
+		}`)
+	}))
+	defer server.Close()
+
+	authenticator := NewOAuth2Authenticator("client-id", "client-secret", server.Client(), server.URL)
+
+	const requests = 100
+
+	var wg sync.WaitGroup
+	wg.Add(requests)
+
+	for range requests {
+		go func() {
+			defer wg.Done()
+
+			req, err := http.NewRequest(
+				http.MethodGet,
+				"https://api.klikbca.com/api/oauth/token",
+				nil,
+			)
+			if err != nil {
+				t.Errorf("failed to create request: %v", err)
+				return
+			}
+
+			if err := authenticator.Authenticate(context.Background(), req); err != nil {
+				t.Errorf("unexpected error: %v", err)
+				return
+			}
+
+			if got := req.Header.Get("Authorization"); got != "Bearer test-token" {
+				t.Errorf("expected Authorization %q, got %q", "Bearer test-token", got)
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	if tokenRequests != 1 {
+		t.Errorf("expected 1 token request, got %d", tokenRequests)
 	}
 }
