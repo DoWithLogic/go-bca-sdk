@@ -42,3 +42,11 @@ func WithTimeout(timeout time.Duration) Option {
 		return nil
 	}
 }
+
+// WithAPISecret sets the API secret used to sign BCA API requests.
+func WithAPISecret(apiSecret string) Option {
+	return func(cfg *Config) error {
+		cfg.APISecret = apiSecret
+		return nil
+	}
+}

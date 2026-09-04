@@ -32,6 +32,7 @@ type Config struct {
 
 	ClientID     string
 	ClientSecret string
+	APISecret    string
 
 	HTTPClient *http.Client
 	Timeout    time.Duration

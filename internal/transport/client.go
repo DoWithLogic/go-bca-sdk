@@ -17,9 +17,10 @@ type Client struct {
 //
 // The provided HTTP client is used to execute API requests, and baseURL
 // specifies the base URL of the BCA API.
-func NewClient(httpClient *http.Client, baseURL string) *Client {
+func NewClient(httpClient *http.Client, baseURL string, authenticator auth.Authenticator) *Client {
 	return &Client{
 		httpClient: httpClient,
 		baseURL:    baseURL,
+		auth:       authenticator,
 	}
 }

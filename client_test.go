@@ -10,6 +10,7 @@ func TestNewClient(t *testing.T) {
 		WithOAuthCredentials("test-client", "test-secret"),
 		WithEnvironment(Production),
 		WithTimeout(10*time.Second),
+		WithAPISecret("api-secret"),
 	)
 
 	if err != nil {
@@ -26,5 +27,9 @@ func TestNewClient(t *testing.T) {
 
 	if client.config.Timeout != 10*time.Second {
 		t.Errorf("unexpected timeout")
+	}
+
+	if client.config.APISecret != "api-secret" {
+		t.Errorf("unexpected API Secret")
 	}
 }

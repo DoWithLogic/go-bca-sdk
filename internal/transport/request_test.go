@@ -1,0 +1,58 @@
+package transport
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+)
+
+type mockAuthenticator struct {
+	called bool
+}
+
+func (m *mockAuthenticator) Authenticate(ctx context.Context, req *http.Request) error {
+	m.called = true
+	req.Header.Set("Authorization", "Bearer test-token")
+	return nil
+}
+
+func TestClient_Do_AuthenticatesRequest(t *testing.T) {
+	authenticator := &mockAuthenticator{}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer test-token" {
+			t.Errorf("expected Authorization %q, got %q", "Bearer test-token", got)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `{"status":"ok"}`)
+	}))
+	defer server.Close()
+
+	client := NewClient(server.Client(), server.URL, authenticator)
+
+	var result struct {
+		Status string `json:"status"`
+	}
+
+	err := client.Do(
+		context.Background(),
+		http.MethodGet,
+		"/test",
+		nil,
+		&result,
+	)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if result.Status != "ok" {
+		t.Errorf("expected status %q, got %q", "ok", result.Status)
+	}
+
+	if !authenticator.called {
+		t.Fatal("expected authenticator to be called")
+	}
+}
