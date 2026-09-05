@@ -56,3 +56,38 @@ func TestClient_Do_AuthenticatesRequest(t *testing.T) {
 		t.Fatal("expected authenticator to be called")
 	}
 }
+
+func TestClient_Do_NonSuccessStatus(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"error":"invalid request"}`))
+	}))
+	defer server.Close()
+
+	client := NewClient(http.DefaultClient, server.URL, nil)
+
+	err := client.Do(
+		context.Background(),
+		http.MethodGet,
+		"/balance",
+		nil,
+		nil,
+	)
+
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+
+	apiErr, ok := err.(*APIError)
+	if !ok {
+		t.Fatalf("expected *APIError, got %T", err)
+	}
+
+	if apiErr.StatusCode != http.StatusBadRequest {
+		t.Errorf("expected status code %d, got %d", http.StatusBadRequest, apiErr.StatusCode)
+	}
+
+	if string(apiErr.Body) != `{"error":"invalid request"}` {
+		t.Errorf("unexpected body: %s", apiErr.Body)
+	}
+}
