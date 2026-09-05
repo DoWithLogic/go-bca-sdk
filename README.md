@@ -75,6 +75,7 @@ import (
 	"log"
 
 	bca "github.com/DoWithLogic/go-bca-sdk"
+	"github.com/DoWithLogic/go-bca-sdk/account_information"
 )
 
 func main() {
@@ -84,14 +85,14 @@ func main() {
 		bca.WithClientID("your-client-id"),
 		bca.WithClientSecret("your-client-secret"),
 		bca.WithSNAPAuth(privateKey),
-		bca.WithSNAPChannelID("95051"),
-		bca.WithSNAPPartnerID("your-partner-id"),
+		bca.WithChannelID("95051"),
+		bca.WithPartnerID("your-partner-id"),
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	request := bca.BalanceInquiryRequest{
+	request := account_information.BalanceInquiryRequest{
 		PartnerReferenceNo: "partner-reference-123",
 		AccountNo:          "1234567890",
 	}
