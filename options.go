@@ -1,6 +1,7 @@
 package bca
 
 import (
+	"crypto/rsa"
 	"fmt"
 	"net/http"
 	"time"
@@ -62,6 +63,16 @@ func WithRetryBackoff(backoff time.Duration) Option {
 			return fmt.Errorf("retry backoff cannot be negative")
 		}
 		cfg.RetryBackoff = backoff
+		return nil
+	}
+}
+
+// WithSNAPAuth configures the client to use BCA SNAP authentication
+// with the provided RSA private key.
+func WithSNAPAuth(privateKey *rsa.PrivateKey) Option {
+	return func(cfg *Config) error {
+		cfg.AuthMode = AuthModeSNAP
+		cfg.SNAPPrivateKey = privateKey
 		return nil
 	}
 }

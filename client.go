@@ -1,7 +1,6 @@
 package bca
 
 import (
-	"github.com/DoWithLogic/go-bca-sdk/internal/auth"
 	"github.com/DoWithLogic/go-bca-sdk/internal/transport"
 )
 
@@ -14,15 +13,16 @@ type Client struct {
 // NewClient creates a new BCA API client using the provided options.
 func NewClient(opts ...Option) (*Client, error) {
 	cfg := defaultConfig()
-
 	for _, opt := range opts {
 		if err := opt(&cfg); err != nil {
 			return nil, err
 		}
 	}
 
-	oauth := auth.NewOAuth2Authenticator(cfg.ClientID, cfg.ClientSecret, cfg.HTTPClient, cfg.BaseURL+"/api/oauth/token")
-	authenticator := auth.NewBCAAuthenticator(oauth, cfg.APISecret)
+	authenticator, err := cfg.newAuthenticator()
+	if err != nil {
+		return nil, err
+	}
 
 	client := &Client{
 		config: cfg,

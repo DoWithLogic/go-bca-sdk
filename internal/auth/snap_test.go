@@ -15,6 +15,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/DoWithLogic/go-bca-sdk/internal/signature"
 )
 
 func TestGenerateSNAPSignature(t *testing.T) {
@@ -383,6 +385,18 @@ func TestSNAPAuthenticator_Authenticate(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
+	body := `{"accountNo":"1234567890"}`
+	timestamp := "2026-09-05T12:00:00+07:00"
+
+	expectedSignature, err := signature.SignSNAP(http.MethodPost, "/openapi/v1.0/balance-inquiry", "test-access-token", body, timestamp, "client-secret")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if got := req.Header.Get("X-SIGNATURE"); got != expectedSignature {
+		t.Errorf("unexpected X-SIGNATURE: expected %q, got %q", expectedSignature, got)
+	}
+
 	if got := req.Header.Get("Authorization"); got != "Bearer test-access-token" {
 		t.Errorf("unexpected Authorization header: %q", got)
 	}
@@ -393,5 +407,19 @@ func TestSNAPAuthenticator_Authenticate(t *testing.T) {
 
 	if got := req.Header.Get("X-SIGNATURE"); got == "" {
 		t.Error("expected X-SIGNATURE header")
+	}
+
+	err = authenticator.Authenticate(context.Background(), req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	bodyBytes, err := io.ReadAll(req.Body)
+	if err != nil {
+		t.Fatalf("failed to read request body: %v", err)
+	}
+
+	if string(bodyBytes) != body {
+		t.Errorf("request body was modified: expected %q, got %q", body, string(bodyBytes))
 	}
 }
