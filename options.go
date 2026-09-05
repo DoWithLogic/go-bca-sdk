@@ -77,19 +77,18 @@ func WithSNAPAuth(privateKey *rsa.PrivateKey) Option {
 	}
 }
 
-// WithSNAPChannelID sets the channel identifier used for BCA SNAP requests.
-func WithSNAPChannelID(channelID string) Option {
+// WithChannelID sets the channel identifier.
+func WithChannelID(channelID string) Option {
 	return func(cfg *Config) error {
-		cfg.SNAPChannelID = channelID
+		cfg.ChannelID = channelID
 		return nil
 	}
 }
 
-// WithSNAPPartnerID sets the KlikBCA Bisnis Corporate ID used for
-// BCA SNAP requests.
-func WithSNAPPartnerID(partnerID string) Option {
+// WithPartnerID sets the Klik BCA Bisnis's Corporate ID
+func WithPartnerID(partnerID string) Option {
 	return func(cfg *Config) error {
-		cfg.SNAPPartnerID = partnerID
+		cfg.PartnerID = partnerID
 		return nil
 	}
 }

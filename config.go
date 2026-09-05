@@ -77,11 +77,11 @@ type Config struct {
 	// SNAPPrivateKey is the RSA private key used to sign SNAP access-token requests.
 	SNAPPrivateKey *rsa.PrivateKey
 
-	// SNAPChannelID is the channel identifier used for BCA SNAP requests.
-	SNAPChannelID string
+	// ChannelID is the channel identifier used for BCA requests.
+	ChannelID string
 
-	// SNAPPartnerID is the KlikBCA Bisnis Corporate ID.
-	SNAPPartnerID string
+	// PartnerID is the KlikBCA Bisnis Corporate ID.
+	PartnerID string
 }
 
 // defaultConfig returns the default configuration for the BCA client.
@@ -105,8 +105,8 @@ func (c Config) newAuthenticator() (auth.Authenticator, error) {
 			c.ClientID,
 			c.ClientSecret,
 			c.SNAPPrivateKey,
-			c.SNAPChannelID,
-			c.SNAPPartnerID,
+			c.ChannelID,
+			c.PartnerID,
 			c.HTTPClient,
 			c.BaseURL+"/openapi/v1.0/access-token/b2b",
 		), nil

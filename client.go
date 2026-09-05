@@ -1,15 +1,17 @@
 package bca
 
 import (
+	"github.com/DoWithLogic/go-bca-sdk/account_information"
+	"github.com/DoWithLogic/go-bca-sdk/business_debit_card"
 	"github.com/DoWithLogic/go-bca-sdk/internal/transport"
 )
 
 // Client is the main client for interacting with the BCA API.
 type Client struct {
-	config    Config
-	transport *transport.Client
+	config Config
 
-	Account *AccountService
+	AccountInformation *account_information.AccountInformationService
+	BusinessDebitCard  *business_debit_card.BusinessDebitCardService
 }
 
 // NewClient creates a new BCA API client using the provided options.
@@ -26,19 +28,18 @@ func NewClient(opts ...Option) (*Client, error) {
 		return nil, err
 	}
 
-	client := &Client{
-		config: cfg,
-		transport: transport.NewClient(
-			cfg.HTTPClient,
-			cfg.BaseURL,
-			authenticator,
-			transport.RetryConfig{
-				MaxRetries: cfg.MaxRetries,
-				Backoff:    cfg.RetryBackoff,
-			}),
-	}
+	transport := transport.NewClient(
+		cfg.HTTPClient,
+		cfg.BaseURL,
+		authenticator,
+		transport.RetryConfig{MaxRetries: cfg.MaxRetries, Backoff: cfg.RetryBackoff},
+	)
 
-	client.Account = &AccountService{client: client}
+	client := &Client{
+		config:             cfg,
+		AccountInformation: account_information.NewAccountInformationService(transport),
+		BusinessDebitCard:  business_debit_card.NewBusinessDebitCardService(transport),
+	}
 
 	return client, nil
 }
