@@ -7,9 +7,12 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/base64"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -59,7 +62,7 @@ func TestSNAPAuthenticator_GetAccessToken(t *testing.T) {
 		t.Fatalf("failed to generate private key: %v", err)
 	}
 
-	authenticator := NewSNAPAuthenticator("client-id", privateKey, nil, "")
+	authenticator := NewSNAPAuthenticator("client-id", "client-secret", privateKey, nil, "")
 	authenticator.now = func() time.Time {
 		return time.Date(2026, 9, 5, 12, 0, 0, 0, time.FixedZone("WIB", 7*60*60))
 	}
@@ -157,7 +160,7 @@ func TestSNAPAuthenticator_GetAccessToken_NonSuccess(t *testing.T) {
 	}))
 	defer server.Close()
 
-	authenticator := NewSNAPAuthenticator("client-id", privateKey, server.Client(), server.URL)
+	authenticator := NewSNAPAuthenticator("client-id", "client-secret", privateKey, server.Client(), server.URL)
 
 	if _, err = authenticator.getAccessToken(context.Background()); err == nil {
 		t.Fatal("expected error, got nil")
@@ -176,9 +179,219 @@ func TestSNAPAuthenticator_GetAccessToken_InvalidJSON(t *testing.T) {
 	}))
 	defer server.Close()
 
-	authenticator := NewSNAPAuthenticator("client-id", privateKey, server.Client(), server.URL)
+	authenticator := NewSNAPAuthenticator("client-id", "client-secret", privateKey, server.Client(), server.URL)
 
 	if _, err = authenticator.getAccessToken(context.Background()); err == nil {
 		t.Fatal("expected error, got nil")
+	}
+}
+
+func TestSNAPAuthenticator_GetToken_ReusesValidToken(t *testing.T) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("failed to generate private key: %v", err)
+	}
+
+	requestCount := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"accessToken": "test-access-token",
+			"tokenType": "Bearer",
+			"expiresIn": "900"
+		}`))
+	}))
+	defer server.Close()
+
+	now := time.Date(2026, 9, 5, 12, 0, 0, 0, time.FixedZone("WIB", 7*60*60))
+	authenticator := NewSNAPAuthenticator("client-id", "client-secret", privateKey, server.Client(), server.URL)
+	authenticator.now = func() time.Time { return now }
+
+	token1, err := authenticator.getToken(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	token2, err := authenticator.getToken(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if token1.AccessToken != token2.AccessToken {
+		t.Errorf("expected same access token, got %q and %q", token1.AccessToken, token2.AccessToken)
+	}
+
+	if requestCount != 1 {
+		t.Errorf("expected 1 token request, got %d", requestCount)
+	}
+}
+
+func TestSNAPAuthenticator_GetToken_RefreshesExpiredToken(t *testing.T) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("failed to generate private key: %v", err)
+	}
+
+	requestCount := 0
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+
+		w.Header().Set("Content-Type", "application/json")
+
+		if requestCount == 1 {
+			_, _ = w.Write([]byte(`{
+				"accessToken": "token-1",
+				"tokenType": "Bearer",
+				"expiresIn": "900"
+			}`))
+			return
+		}
+
+		_, _ = w.Write([]byte(`{
+			"accessToken": "token-2",
+			"tokenType": "Bearer",
+			"expiresIn": "900"
+		}`))
+	}))
+	defer server.Close()
+
+	now := time.Date(2026, 9, 5, 12, 0, 0, 0, time.FixedZone("WIB", 7*60*60))
+	authenticator := NewSNAPAuthenticator("client-id", "client-secret", privateKey, server.Client(), server.URL)
+	authenticator.now = func() time.Time { return now }
+
+	token1, err := authenticator.getToken(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if token1.AccessToken != "token-1" {
+		t.Errorf("expected token-1, got %q", token1.AccessToken)
+	}
+
+	// Move time beyond the 15-minute expiration.
+	now = now.Add(16 * time.Minute)
+
+	token2, err := authenticator.getToken(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if token2.AccessToken != "token-2" {
+		t.Errorf("expected token-2, got %q", token2.AccessToken)
+	}
+
+	if requestCount != 2 {
+		t.Errorf("expected 2 token requests, got %d", requestCount)
+	}
+}
+
+func TestSNAPAuthenticator_GetToken_Concurrent(t *testing.T) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("failed to generate private key: %v", err)
+	}
+
+	requestCount := 0
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"accessToken": "test-access-token",
+			"tokenType": "Bearer",
+			"expiresIn": "900"
+		}`))
+	}))
+	defer server.Close()
+
+	authenticator := NewSNAPAuthenticator("client-id", "client-secret", privateKey, server.Client(), server.URL)
+	authenticator.now = func() time.Time {
+		return time.Date(2026, 9, 5, 12, 0, 0, 0, time.FixedZone("WIB", 7*60*60))
+	}
+
+	const goroutines = 20
+
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+
+	errors := make(chan error, goroutines)
+
+	for range goroutines {
+		go func() {
+			defer wg.Done()
+
+			token, err := authenticator.getToken(context.Background())
+			if err != nil {
+				errors <- err
+				return
+			}
+
+			if token.AccessToken != "test-access-token" {
+				errors <- fmt.Errorf(
+					"unexpected access token: %s",
+					token.AccessToken,
+				)
+			}
+		}()
+	}
+
+	wg.Wait()
+	close(errors)
+
+	for err := range errors {
+		t.Error(err)
+	}
+
+	if requestCount != 1 {
+		t.Errorf("expected 1 token request, got %d", requestCount)
+	}
+}
+
+func TestSNAPAuthenticator_Authenticate(t *testing.T) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("failed to generate private key: %v", err)
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"accessToken": "test-access-token",
+			"tokenType": "Bearer",
+			"expiresIn": "900"
+		}`))
+	}))
+	defer server.Close()
+
+	authenticator := NewSNAPAuthenticator("client-id", "client-secret", privateKey, server.Client(), server.URL)
+
+	req, err := http.NewRequest(http.MethodPost, "https://example.com/openapi/v1.0/balance-inquiry", strings.NewReader(`{"accountNo":"1234567890"}`))
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
+
+	authenticator.now = func() time.Time {
+		return time.Date(2026, 9, 5, 12, 0, 0, 0, time.FixedZone("WIB", 7*60*60))
+	}
+
+	err = authenticator.Authenticate(context.Background(), req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if got := req.Header.Get("Authorization"); got != "Bearer test-access-token" {
+		t.Errorf("unexpected Authorization header: %q", got)
+	}
+
+	if got := req.Header.Get("X-TIMESTAMP"); got == "" {
+		t.Error("expected X-TIMESTAMP header")
+	}
+
+	if got := req.Header.Get("X-SIGNATURE"); got == "" {
+		t.Error("expected X-SIGNATURE header")
 	}
 }
