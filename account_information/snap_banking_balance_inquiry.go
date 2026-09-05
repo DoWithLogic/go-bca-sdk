@@ -1,4 +1,4 @@
-package bca
+package account_information
 
 import (
 	"context"
@@ -6,11 +6,6 @@ import (
 
 	"github.com/DoWithLogic/go-bca-sdk/internal/transport"
 )
-
-// AccountService provides account-related services through the BCA API.
-type AccountService struct {
-	client *Client
-}
 
 // BalanceInquiryRequest contains the parameters required to inquire an
 // account balance through the BCA SNAP Banking Balance Inquiry service.
@@ -47,17 +42,15 @@ type Money struct {
 
 // BalanceInquiry performs a SNAP Banking Balance Inquiry for a registered
 // KlikBCA Bisnis account.
-func (s *AccountService) BalanceInquiry(ctx context.Context, request BalanceInquiryRequest, externalID string) (*BalanceInquiryResponse, error) {
+func (s *AccountInformationService) BalanceInquiry(ctx context.Context, request BalanceInquiryRequest, externalID string) (*BalanceInquiryResponse, error) {
 	var response BalanceInquiryResponse
-	err := s.client.transport.Do(
+	err := s.transport.Do(
 		ctx,
 		transport.Request{
-			Method: http.MethodPost,
-			Path:   "/openapi/v1.0/balance-inquiry",
-			Headers: http.Header{
-				"X-EXTERNAL-ID": []string{externalID},
-			},
-			Body: request,
+			Method:  http.MethodPost,
+			Path:    "/openapi/v1.0/balance-inquiry",
+			Headers: http.Header{"X-EXTERNAL-ID": []string{externalID}},
+			Body:    request,
 		},
 		&response,
 	)
