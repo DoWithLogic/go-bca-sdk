@@ -1,6 +1,7 @@
 package bca
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 )
@@ -35,18 +36,32 @@ func WithHTTPClient(client *http.Client) Option {
 	}
 }
 
-// WithTimeout sets the timeout for HTTP requests made by the client.
-func WithTimeout(timeout time.Duration) Option {
-	return func(cfg *Config) error {
-		cfg.Timeout = timeout
-		return nil
-	}
-}
-
 // WithAPISecret sets the API secret used to sign BCA API requests.
 func WithAPISecret(apiSecret string) Option {
 	return func(cfg *Config) error {
 		cfg.APISecret = apiSecret
+		return nil
+	}
+}
+
+// WithMaxRetries sets the maximum number of retries for retryable requests.
+func WithMaxRetries(maxRetries int) Option {
+	return func(cfg *Config) error {
+		if maxRetries < 0 {
+			return fmt.Errorf("max retries cannot be negative")
+		}
+		cfg.MaxRetries = maxRetries
+		return nil
+	}
+}
+
+// WithRetryBackoff sets the initial backoff duration between retries.
+func WithRetryBackoff(backoff time.Duration) Option {
+	return func(cfg *Config) error {
+		if backoff < 0 {
+			return fmt.Errorf("retry backoff cannot be negative")
+		}
+		cfg.RetryBackoff = backoff
 		return nil
 	}
 }

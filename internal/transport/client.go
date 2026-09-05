@@ -2,7 +2,6 @@ package transport
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/DoWithLogic/go-bca-sdk/internal/auth"
 )
@@ -20,15 +19,12 @@ type Client struct {
 //
 // The provided HTTP client is used to execute API requests, and baseURL
 // specifies the base URL of the BCA API.
-func NewClient(httpClient *http.Client, baseURL string, authenticator auth.Authenticator) *Client {
+func NewClient(httpClient *http.Client, baseURL string, authenticator auth.Authenticator, retryConfig RetryConfig) *Client {
 	return &Client{
 		httpClient:  httpClient,
 		baseURL:     baseURL,
 		auth:        authenticator,
 		retryPolicy: DefaultRetryPolicy{},
-		retryConfig: RetryConfig{
-			MaxRetries: 2,
-			Backoff:    100 * time.Microsecond,
-		},
+		retryConfig: retryConfig,
 	}
 }

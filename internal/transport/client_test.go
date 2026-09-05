@@ -22,7 +22,7 @@ func TestClient_Do(t *testing.T) {
 
 	defer server.Close()
 
-	client := NewClient(http.DefaultClient, server.URL, &mockAuthenticator{})
+	client := NewClient(http.DefaultClient, server.URL, &mockAuthenticator{}, RetryConfig{})
 
 	var response struct {
 		Balance string `json:"balance"`
@@ -36,5 +36,27 @@ func TestClient_Do(t *testing.T) {
 
 	if response.Balance != "1000000" {
 		t.Errorf("expected balance 1000000, got %s", response.Balance)
+	}
+}
+
+func TestClient_Do_UsesRetryConfig(t *testing.T) {
+	var requests int
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	client := NewClient(http.DefaultClient, server.URL, nil, RetryConfig{})
+
+	err := client.Do(context.Background(), http.MethodGet, "/balance", nil, nil)
+
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+
+	if requests != 1 {
+		t.Errorf("expected 1 request, got %d", requests)
 	}
 }
