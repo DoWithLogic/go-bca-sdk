@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 type mockAuthenticator struct {
@@ -31,7 +32,7 @@ func TestClient_Do_AuthenticatesRequest(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(server.Client(), server.URL, authenticator)
+	client := NewClient(server.Client(), server.URL, authenticator, RetryConfig{MaxRetries: 2, Backoff: 100 * time.Microsecond})
 
 	var result struct {
 		Status string `json:"status"`
@@ -64,7 +65,7 @@ func TestClient_Do_NonSuccessStatus(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(http.DefaultClient, server.URL, nil)
+	client := NewClient(http.DefaultClient, server.URL, nil, RetryConfig{MaxRetries: 2, Backoff: 100 * time.Microsecond})
 
 	err := client.Do(
 		context.Background(),

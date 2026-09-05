@@ -25,8 +25,15 @@ func NewClient(opts ...Option) (*Client, error) {
 	authenticator := auth.NewBCAAuthenticator(oauth, cfg.APISecret)
 
 	client := &Client{
-		config:    cfg,
-		transport: transport.NewClient(cfg.HTTPClient, cfg.BaseURL, authenticator),
+		config: cfg,
+		transport: transport.NewClient(
+			cfg.HTTPClient,
+			cfg.BaseURL,
+			authenticator,
+			transport.RetryConfig{
+				MaxRetries: cfg.MaxRetries,
+				Backoff:    cfg.RetryBackoff,
+			}),
 	}
 
 	return client, nil

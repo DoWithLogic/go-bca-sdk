@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestDefaultRetryPolicy_ShouldRetry(t *testing.T) {
@@ -48,7 +49,7 @@ func TestClient_Do_RetriesGETOnServerError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(http.DefaultClient, server.URL, nil)
+	client := NewClient(http.DefaultClient, server.URL, nil, RetryConfig{MaxRetries: 2, Backoff: 100 * time.Microsecond})
 
 	var response struct {
 		Balance string `json:"balance"`
@@ -76,7 +77,7 @@ func TestClient_Do_DoesNotRetryPOSTOnServerError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewClient(http.DefaultClient, server.URL, nil)
+	client := NewClient(http.DefaultClient, server.URL, nil, RetryConfig{MaxRetries: 2, Backoff: 100 * time.Microsecond})
 
 	err := client.Do(
 		context.Background(),
