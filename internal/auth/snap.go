@@ -67,10 +67,7 @@ func (a *SNAPAuthenticator) Authenticate(ctx context.Context, req *http.Request)
 		return err
 	}
 
-	req.Header.Set("Authorization", token.TokenType+" "+token.AccessToken)
-
 	timestamp := a.now().Format(time.RFC3339)
-	req.Header.Set("X-TIMESTAMP", timestamp)
 
 	var body string
 	if req.Body != nil {
@@ -89,6 +86,8 @@ func (a *SNAPAuthenticator) Authenticate(ctx context.Context, req *http.Request)
 		return err
 	}
 
+	req.Header.Set("Authorization", token.TokenType+" "+token.AccessToken)
+	req.Header.Set("X-TIMESTAMP", timestamp)
 	req.Header.Set("X-SIGNATURE", sig)
 
 	return nil
