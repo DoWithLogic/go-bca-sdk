@@ -9,18 +9,25 @@ import (
 	"time"
 )
 
+type Request struct {
+	Method  string
+	Path    string
+	Body    any
+	Headers http.Header
+}
+
 // Do executes an HTTP request against the BCA API.
 //
 // The body is encoded as JSON when it is not nil. If result is not nil,
 // the response body is decoded from JSON into result.
-func (c *Client) Do(ctx context.Context, method string, path string, body any, result any) error {
-	url := c.baseURL + path
+func (c *Client) Do(ctx context.Context, request Request, result any) error {
+	url := c.baseURL + request.Path
 
 	var requestBody []byte
 	var err error
 
-	if body != nil {
-		requestBody, err = json.Marshal(body)
+	if request.Body != nil {
+		requestBody, err = json.Marshal(request.Body)
 		if err != nil {
 			return err
 		}
@@ -29,7 +36,7 @@ func (c *Client) Do(ctx context.Context, method string, path string, body any, r
 	for attempt := 0; ; attempt++ {
 		req, err := http.NewRequestWithContext(
 			ctx,
-			method,
+			request.Method,
 			url,
 			bytes.NewReader(requestBody),
 		)
@@ -39,8 +46,14 @@ func (c *Client) Do(ctx context.Context, method string, path string, body any, r
 
 		req.Header.Set("Accept", "application/json")
 
-		if body != nil {
+		if request.Body != nil {
 			req.Header.Set("Content-Type", "application/json")
+		}
+
+		for key, values := range request.Headers {
+			for _, value := range values {
+				req.Header.Add(key, value)
+			}
 		}
 
 		if c.auth != nil {
@@ -71,12 +84,11 @@ func (c *Client) Do(ctx context.Context, method string, path string, body any, r
 
 		responseBody, err := io.ReadAll(resp.Body)
 		resp.Body.Close()
-
 		if err != nil {
 			return err
 		}
 
-		if !c.retryPolicy.ShouldRetry(method, resp.StatusCode) ||
+		if !c.retryPolicy.ShouldRetry(request.Method, resp.StatusCode) ||
 			attempt >= c.retryConfig.MaxRetries {
 			return &APIError{
 				StatusCode: resp.StatusCode,

@@ -8,6 +8,8 @@ import (
 type Client struct {
 	config    Config
 	transport *transport.Client
+
+	Account *AccountService
 }
 
 // NewClient creates a new BCA API client using the provided options.
@@ -35,6 +37,8 @@ func NewClient(opts ...Option) (*Client, error) {
 				Backoff:    cfg.RetryBackoff,
 			}),
 	}
+
+	client.Account = &AccountService{client: client}
 
 	return client, nil
 }

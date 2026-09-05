@@ -28,7 +28,7 @@ func TestClient_Do(t *testing.T) {
 		Balance string `json:"balance"`
 	}
 
-	err := client.Do(context.Background(), http.MethodGet, "/balance", nil, &response)
+	err := client.Do(context.Background(), Request{Method: http.MethodGet, Path: "/balance"}, &response)
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -50,7 +50,7 @@ func TestClient_Do_UsesRetryConfig(t *testing.T) {
 
 	client := NewClient(http.DefaultClient, server.URL, nil, RetryConfig{})
 
-	err := client.Do(context.Background(), http.MethodGet, "/balance", nil, nil)
+	err := client.Do(context.Background(), Request{Method: http.MethodGet, Path: "/balance"}, nil)
 
 	if err == nil {
 		t.Fatal("expected error, got nil")

@@ -55,7 +55,7 @@ func TestClient_Do_RetriesGETOnServerError(t *testing.T) {
 		Balance string `json:"balance"`
 	}
 
-	err := client.Do(context.Background(), http.MethodGet, "/balance", nil, &response)
+	err := client.Do(context.Background(), Request{Method: http.MethodGet, Path: "/balance"}, &response)
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -81,11 +81,11 @@ func TestClient_Do_DoesNotRetryPOSTOnServerError(t *testing.T) {
 
 	err := client.Do(
 		context.Background(),
-		http.MethodPost,
-		"/payment",
-		struct {
+		Request{Method: http.MethodPost, Path: "/payment", Body: struct {
 			Amount int `json:"amount"`
-		}{Amount: 100000},
+		}{
+			Amount: 100000,
+		}},
 		nil,
 	)
 
