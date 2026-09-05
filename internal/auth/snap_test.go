@@ -64,7 +64,7 @@ func TestSNAPAuthenticator_GetAccessToken(t *testing.T) {
 		t.Fatalf("failed to generate private key: %v", err)
 	}
 
-	authenticator := NewSNAPAuthenticator("client-id", "client-secret", privateKey, nil, "")
+	authenticator := NewSNAPAuthenticator("client-id", "client-secret", privateKey, "channel-id", "partner-id", nil, "")
 	authenticator.now = func() time.Time {
 		return time.Date(2026, 9, 5, 12, 0, 0, 0, time.FixedZone("WIB", 7*60*60))
 	}
@@ -162,7 +162,7 @@ func TestSNAPAuthenticator_GetAccessToken_NonSuccess(t *testing.T) {
 	}))
 	defer server.Close()
 
-	authenticator := NewSNAPAuthenticator("client-id", "client-secret", privateKey, server.Client(), server.URL)
+	authenticator := NewSNAPAuthenticator("client-id", "client-secret", privateKey, "channel-id", "partner-id", server.Client(), server.URL)
 
 	if _, err = authenticator.getAccessToken(context.Background()); err == nil {
 		t.Fatal("expected error, got nil")
@@ -181,7 +181,7 @@ func TestSNAPAuthenticator_GetAccessToken_InvalidJSON(t *testing.T) {
 	}))
 	defer server.Close()
 
-	authenticator := NewSNAPAuthenticator("client-id", "client-secret", privateKey, server.Client(), server.URL)
+	authenticator := NewSNAPAuthenticator("client-id", "client-secret", privateKey, "channel-id", "partner-id", server.Client(), server.URL)
 
 	if _, err = authenticator.getAccessToken(context.Background()); err == nil {
 		t.Fatal("expected error, got nil")
@@ -208,7 +208,7 @@ func TestSNAPAuthenticator_GetToken_ReusesValidToken(t *testing.T) {
 	defer server.Close()
 
 	now := time.Date(2026, 9, 5, 12, 0, 0, 0, time.FixedZone("WIB", 7*60*60))
-	authenticator := NewSNAPAuthenticator("client-id", "client-secret", privateKey, server.Client(), server.URL)
+	authenticator := NewSNAPAuthenticator("client-id", "client-secret", privateKey, "channel-id", "partner-id", server.Client(), server.URL)
 	authenticator.now = func() time.Time { return now }
 
 	token1, err := authenticator.getToken(context.Background())
@@ -261,7 +261,7 @@ func TestSNAPAuthenticator_GetToken_RefreshesExpiredToken(t *testing.T) {
 	defer server.Close()
 
 	now := time.Date(2026, 9, 5, 12, 0, 0, 0, time.FixedZone("WIB", 7*60*60))
-	authenticator := NewSNAPAuthenticator("client-id", "client-secret", privateKey, server.Client(), server.URL)
+	authenticator := NewSNAPAuthenticator("client-id", "client-secret", privateKey, "channel-id", "partner-id", server.Client(), server.URL)
 	authenticator.now = func() time.Time { return now }
 
 	token1, err := authenticator.getToken(context.Background())
@@ -310,7 +310,7 @@ func TestSNAPAuthenticator_GetToken_Concurrent(t *testing.T) {
 	}))
 	defer server.Close()
 
-	authenticator := NewSNAPAuthenticator("client-id", "client-secret", privateKey, server.Client(), server.URL)
+	authenticator := NewSNAPAuthenticator("client-id", "client-secret", privateKey, "channel-id", "partner-id", server.Client(), server.URL)
 	authenticator.now = func() time.Time {
 		return time.Date(2026, 9, 5, 12, 0, 0, 0, time.FixedZone("WIB", 7*60*60))
 	}
@@ -369,7 +369,7 @@ func TestSNAPAuthenticator_Authenticate(t *testing.T) {
 	}))
 	defer server.Close()
 
-	authenticator := NewSNAPAuthenticator("client-id", "client-secret", privateKey, server.Client(), server.URL)
+	authenticator := NewSNAPAuthenticator("client-id", "client-secret", privateKey, "channel-id", "partner-id", server.Client(), server.URL)
 
 	req, err := http.NewRequest(http.MethodPost, "https://example.com/openapi/v1.0/balance-inquiry", strings.NewReader(`{"accountNo":"1234567890"}`))
 	if err != nil {
@@ -395,6 +395,14 @@ func TestSNAPAuthenticator_Authenticate(t *testing.T) {
 
 	if got := req.Header.Get("X-SIGNATURE"); got != expectedSignature {
 		t.Errorf("unexpected X-SIGNATURE: expected %q, got %q", expectedSignature, got)
+	}
+
+	if got := req.Header.Get("CHANNEL-ID"); got != "channel-id" {
+		t.Errorf("unexpected CHANNEL-ID header: %q", got)
+	}
+
+	if got := req.Header.Get("X-PARTNER-ID"); got != "partner-id" {
+		t.Errorf("unexpected X-PARTNER-ID header: %q", got)
 	}
 
 	if got := req.Header.Get("Authorization"); got != "Bearer test-access-token" {

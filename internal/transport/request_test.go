@@ -38,13 +38,7 @@ func TestClient_Do_AuthenticatesRequest(t *testing.T) {
 		Status string `json:"status"`
 	}
 
-	err := client.Do(
-		context.Background(),
-		http.MethodGet,
-		"/test",
-		nil,
-		&result,
-	)
+	err := client.Do(context.Background(), Request{Method: http.MethodGet, Path: "/test"}, &result)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -69,9 +63,7 @@ func TestClient_Do_NonSuccessStatus(t *testing.T) {
 
 	err := client.Do(
 		context.Background(),
-		http.MethodGet,
-		"/balance",
-		nil,
+		Request{Method: http.MethodGet, Path: "/balance"},
 		nil,
 	)
 

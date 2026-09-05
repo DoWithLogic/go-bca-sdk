@@ -28,6 +28,8 @@ type SNAPAuthenticator struct {
 	clientID     string
 	clientSecret string
 	privateKey   *rsa.PrivateKey
+	channelID    string
+	partnerID    string
 	httpClient   *http.Client
 	tokenURL     string
 	now          func() time.Time
@@ -49,11 +51,13 @@ type snapToken struct {
 }
 
 // NewSNAPAuthenticator creates a new SNAP authenticator.
-func NewSNAPAuthenticator(clientID, clientSecret string, privateKey *rsa.PrivateKey, httpClient *http.Client, tokenURL string) *SNAPAuthenticator {
+func NewSNAPAuthenticator(clientID, clientSecret string, privateKey *rsa.PrivateKey, channelID, partnerID string, httpClient *http.Client, tokenURL string) *SNAPAuthenticator {
 	return &SNAPAuthenticator{
 		clientID:     clientID,
 		clientSecret: clientSecret,
 		privateKey:   privateKey,
+		channelID:    channelID,
+		partnerID:    partnerID,
 		httpClient:   httpClient,
 		tokenURL:     tokenURL,
 		now:          time.Now,
@@ -89,6 +93,8 @@ func (a *SNAPAuthenticator) Authenticate(ctx context.Context, req *http.Request)
 	req.Header.Set("Authorization", token.TokenType+" "+token.AccessToken)
 	req.Header.Set("X-TIMESTAMP", timestamp)
 	req.Header.Set("X-SIGNATURE", sig)
+	req.Header.Set("CHANNEL-ID", a.channelID)
+	req.Header.Set("X-PARTNER-ID", a.partnerID)
 
 	return nil
 }
