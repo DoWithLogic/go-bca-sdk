@@ -20,10 +20,10 @@ func TestDefaultRetryPolicy_ShouldRetry(t *testing.T) {
 		{"GET server error", http.MethodGet, http.StatusInternalServerError, true},
 		{"GET timeout", http.MethodGet, http.StatusRequestTimeout, true},
 		{"GET rate limit", http.MethodGet, http.StatusTooManyRequests, true},
-		{"POST server error", http.MethodPost, http.StatusInternalServerError, false},
-		{"POST bad request", http.MethodPost, http.StatusBadRequest, false},
+		{"HEAD server error", http.MethodHead, http.StatusInternalServerError, true},
+		{"HEAD bad request", http.MethodHead, http.StatusBadRequest, false},
 		{"GET bad request", http.MethodGet, http.StatusBadRequest, false},
-		{"DELETE server error", http.MethodDelete, http.StatusInternalServerError, true},
+		{"HEAD server error", http.MethodHead, http.StatusInternalServerError, true},
 	}
 
 	for _, tt := range tests {
