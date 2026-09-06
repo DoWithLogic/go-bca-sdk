@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/DoWithLogic/go-bca-sdk/errors"
 )
 
 type Request struct {
@@ -96,14 +98,14 @@ func (c *Client) Do(ctx context.Context, request Request, result any) error {
 			// Response isn't valid BCA error JSON.
 			// Still return an APIError with the HTTP status.
 			if !c.retryPolicy.ShouldRetry(request.Method, resp.StatusCode) || attempt >= c.retryConfig.MaxRetries {
-				return &APIError{HTTPStatusCode: resp.StatusCode}
+				return &errors.APIError{HTTPStatusCode: resp.StatusCode}
 			}
 
 			continue
 		}
 
 		if !c.retryPolicy.ShouldRetry(request.Method, resp.StatusCode) || attempt >= c.retryConfig.MaxRetries {
-			return &APIError{
+			return &errors.APIError{
 				HTTPStatusCode:  resp.StatusCode,
 				ResponseCode:    apiError.ResponseCode,
 				ResponseMessage: apiError.ResponseMessage,

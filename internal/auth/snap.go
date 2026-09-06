@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/DoWithLogic/go-bca-sdk/errors"
 	"github.com/DoWithLogic/go-bca-sdk/internal/signature"
 )
 
@@ -145,7 +146,20 @@ func (a *SNAPAuthenticator) getAccessToken(ctx context.Context) (*snapTokenRespo
 	defer resp.Body.Close()
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		return nil, fmt.Errorf("SNAP token request failed with status %s", resp.Status)
+		var apiErr struct {
+			ResponseCode    string `json:"responseCode"`
+			ResponseMessage string `json:"responseMessage"`
+		}
+
+		if err := json.NewDecoder(resp.Body).Decode(&apiErr); err != nil {
+			return nil, &errors.APIError{HTTPStatusCode: resp.StatusCode}
+		}
+
+		return nil, &errors.APIError{
+			HTTPStatusCode:  resp.StatusCode,
+			ResponseCode:    apiErr.ResponseCode,
+			ResponseMessage: apiErr.ResponseMessage,
+		}
 	}
 
 	var token snapTokenResponse

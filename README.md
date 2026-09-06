@@ -32,88 +32,10 @@ go get github.com/DoWithLogic/go-bca-sdk
 
 ## Quick Start
 
-### SNAP Authentication
+Complete examples are available in the [`examples/`](examples/) directory:
 
-```go
-package main
-
-import (
-	"crypto/rsa"
-	"log"
-
-	bca "github.com/DoWithLogic/go-bca-sdk"
-)
-
-func main() {
-	var privateKey *rsa.PrivateKey
-
-	client, err := bca.NewClient(
-		bca.WithClientID("your-client-id"),
-		bca.WithClientSecret("your-client-secret"),
-		bca.WithSNAPAuth(privateKey),
-		bca.WithChannelID("95051"),
-		bca.WithPartnerID("your-partner-id"),
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	_ = client
-}
-```
-
-### Balance Inquiry
-
-Perform a SNAP Banking Balance Inquiry for a registered KlikBCA Bisnis account:
-
-```go
-package main
-
-import (
-	"context"
-	"crypto/rsa"
-	"log"
-
-	bca "github.com/DoWithLogic/go-bca-sdk"
-	"github.com/DoWithLogic/go-bca-sdk/account_information"
-)
-
-func main() {
-	var privateKey *rsa.PrivateKey
-
-	client, err := bca.NewClient(
-		bca.WithClientID("your-client-id"),
-		bca.WithClientSecret("your-client-secret"),
-		bca.WithSNAPAuth(privateKey),
-		bca.WithChannelID("95051"),
-		bca.WithPartnerID("your-partner-id"),
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	request := account_information.BalanceInquiryRequest{
-		PartnerReferenceNo: "partner-reference-123",
-		AccountNo:          "1234567890",
-	}
-
-	response, err := client.AccountInformation.BalanceInquiry(
-		context.Background(),
-		request,
-		"external-reference-123",
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	log.Println(response.ResponseCode)
-	log.Println(response.ResponseMessage)
-	log.Println(response.AccountNo)
-	log.Println(response.Name)
-}
-```
-
-`X-EXTERNAL-ID` is provided by the consumer and should be unique for the same day.
+- [`examples/oauth2`](examples/oauth2) — BCA OAuth 2.0 authentication
+- [`examples/snap`](examples/snap) — BCA SNAP authentication
 
 ## Error Handling
 
@@ -122,25 +44,22 @@ API errors are returned as `*APIError` and contain both the HTTP response inform
 ### Checking Specific Error Types
 
 ```go
-response, err := client.Account.BalanceInquiry(
-	context.Background(),
-	request,
-	"external-reference-123",
+response, err := client.AccountInformation.BalanceInquiry(
+    context.Background(),
+    request,
+    "external-reference-123",
 )
 if err != nil {
-	var apiErr *bca.APIError
-	if errors.As(err, &apiErr) {
-		log.Println(apiErr.StatusCode)
-		log.Println(apiErr.ResponseCode)
-		log.Println(apiErr.ResponseMessage)
-		log.Println(string(apiErr.Body))
-	}
+    var apiErr *bcaerrors.APIError
+    if errors.As(err, &apiErr) {
+        log.Println(apiErr.HTTPStatusCode)
+        log.Println(apiErr.ResponseCode)
+        log.Println(apiErr.ResponseMessage)
+    }
 
-	return
+    return
 }
 ```
-
-The raw response body is preserved in `APIError.Body`, allowing consumers to access the original BCA error response.
 
 ---
 

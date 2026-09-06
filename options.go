@@ -24,11 +24,17 @@ func WithEnvironment(env Environment) Option {
 	}
 }
 
-// WithOAuthCredentials sets the OAuth client ID and client secret
-// used to obtain an access token from BCA.
-func WithOAuthCredentials(clientID, clientSecret string) Option {
+// WithClientID sets the BCA client ID.
+func WithClientID(clientID string) Option {
 	return func(cfg *Config) error {
 		cfg.ClientID = clientID
+		return nil
+	}
+}
+
+// WithClientSecret sets the BCA client secret.
+func WithClientSecret(clientSecret string) Option {
+	return func(cfg *Config) error {
 		cfg.ClientSecret = clientSecret
 		return nil
 	}

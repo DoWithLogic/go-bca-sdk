@@ -9,6 +9,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	bcaErrors "github.com/DoWithLogic/go-bca-sdk/errors"
+
 	"github.com/DoWithLogic/go-bca-sdk/internal/transport"
 )
 
@@ -245,7 +247,7 @@ func TestBusinessDebitCardService_DebitCardInquiry_Error(t *testing.T) {
 				t.Fatal("expected error, got nil")
 			}
 
-			var apiErr *transport.APIError
+			var apiErr *bcaErrors.APIError
 			if !errors.As(err, &apiErr) {
 				t.Fatalf("expected *APIError, got %T", err)
 			}
