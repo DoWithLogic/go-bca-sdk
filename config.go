@@ -20,13 +20,23 @@ const (
 	Production Environment = "production"
 )
 
-func (e Environment) is(val Environment) bool { return e == val }
-func (e Environment) baseURL() string {
-	if !e.is(Sandbox) {
-		return "https://api.klikbca.com"
+const (
+	sandboxURL    = "https://sandbox.bca.co.id"
+	productionURL = "https://api.klikbca.com"
+)
+
+var mapBaseURL = map[Environment]string{
+	Sandbox:    sandboxURL,
+	Production: productionURL,
+}
+
+func (e Environment) baseURL() (string, error) {
+	baseURL, exists := mapBaseURL[e]
+	if !exists {
+		return "", fmt.Errorf("unsupported environment: %q", e)
 	}
 
-	return "https://sandbox.bca.co.id"
+	return baseURL, nil
 }
 
 // AuthMode specifies the authentication mechanism used by the BCA client.
@@ -88,7 +98,7 @@ type Config struct {
 func defaultConfig() Config {
 	return Config{
 		Environment:  Sandbox,
-		BaseURL:      Sandbox.baseURL(),
+		BaseURL:      sandboxURL,
 		HTTPClient:   &http.Client{Timeout: 30 * time.Second},
 		MaxRetries:   2,
 		RetryBackoff: 100 * time.Millisecond,
