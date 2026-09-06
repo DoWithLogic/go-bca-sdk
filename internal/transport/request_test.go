@@ -54,19 +54,24 @@ func TestClient_Do_AuthenticatesRequest(t *testing.T) {
 
 func TestClient_Do_NonSuccessStatus(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		_, _ = w.Write([]byte(`{"error":"invalid request"}`))
+
+		_, _ = w.Write([]byte(`{
+			"responseCode": "400US01",
+			"responseMessage": "Invalid Field Format cardNumber"
+		}`))
 	}))
 	defer server.Close()
 
-	client := NewClient(http.DefaultClient, server.URL, nil, RetryConfig{MaxRetries: 2, Backoff: 100 * time.Microsecond})
-
-	err := client.Do(
-		context.Background(),
-		Request{Method: http.MethodGet, Path: "/balance"},
+	client := NewClient(
+		http.DefaultClient,
+		server.URL,
 		nil,
+		RetryConfig{MaxRetries: 2, Backoff: 100 * time.Microsecond},
 	)
 
+	err := client.Do(context.Background(), Request{Method: http.MethodGet, Path: "/balance"}, nil)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -76,11 +81,15 @@ func TestClient_Do_NonSuccessStatus(t *testing.T) {
 		t.Fatalf("expected *APIError, got %T", err)
 	}
 
-	if apiErr.StatusCode != http.StatusBadRequest {
-		t.Errorf("expected status code %d, got %d", http.StatusBadRequest, apiErr.StatusCode)
+	if apiErr.HTTPStatusCode != http.StatusBadRequest {
+		t.Errorf("expected HTTP status %d, got %d", http.StatusBadRequest, apiErr.HTTPStatusCode)
 	}
 
-	if string(apiErr.Body) != `{"error":"invalid request"}` {
-		t.Errorf("unexpected body: %s", apiErr.Body)
+	if apiErr.ResponseCode != "400US01" {
+		t.Errorf("expected response code %q, got %q", "400US01", apiErr.ResponseCode)
+	}
+
+	if apiErr.ResponseMessage != "Invalid Field Format cardNumber" {
+		t.Errorf("expected response message %q, got %q", "Invalid Field Format cardNumber", apiErr.ResponseMessage)
 	}
 }
