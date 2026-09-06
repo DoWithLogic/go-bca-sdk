@@ -1,4 +1,4 @@
-# Users API SDK for Go
+# BCA Developer API SDK for Go
 
 Unofficial Go SDK for integrating with the BCA Developer API.
 
