@@ -13,8 +13,13 @@ type Option func(*Config) error
 // WithEnvironment sets the BCA API environment to use.
 func WithEnvironment(env Environment) Option {
 	return func(cfg *Config) error {
+		baseURL, err := env.baseURL()
+		if err != nil {
+			return err
+		}
+
 		cfg.Environment = env
-		cfg.BaseURL = env.baseURL()
+		cfg.BaseURL = baseURL
 		return nil
 	}
 }
