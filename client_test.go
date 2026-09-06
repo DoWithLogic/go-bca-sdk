@@ -6,7 +6,8 @@ import (
 
 func TestNewClient(t *testing.T) {
 	client, err := NewClient(
-		WithOAuthCredentials("test-client", "test-secret"),
+		WithClientID("client-id"),
+		WithClientSecret("client-secret"),
 		WithEnvironment(Production),
 		WithAPISecret("api-secret"),
 	)
@@ -15,8 +16,12 @@ func TestNewClient(t *testing.T) {
 		t.Fatalf("NewClient() error = %v", err)
 	}
 
-	if client.config.ClientID != "test-client" {
+	if client.config.ClientID != "client-id" {
 		t.Errorf("unexpected client ID")
+	}
+
+	if client.config.ClientSecret != "client-secret" {
+		t.Errorf("unexpected client Secret")
 	}
 
 	if client.config.Environment != Production {

@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/DoWithLogic/go-bca-sdk/errors"
 )
 
 // OAuth2Authenticator authenticates HTTP requests using BCA OAuth 2.0 authentication.
@@ -47,10 +49,17 @@ func (a *OAuth2Authenticator) Authenticate(ctx context.Context, req *http.Reques
 	return nil
 }
 
+const oauth2TokenRequestBody = "grant_type=client_credentials"
+
 func (a *OAuth2Authenticator) getAccessToken(ctx context.Context) (*tokenResponse, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, a.tokenURL, strings.NewReader("grant_type=client_credentials"))
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		a.tokenURL,
+		strings.NewReader(oauth2TokenRequestBody),
+	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create token request: %w", err)
 	}
 
 	req.SetBasicAuth(a.clientID, a.clientSecret)
@@ -59,17 +68,36 @@ func (a *OAuth2Authenticator) getAccessToken(ctx context.Context) (*tokenRespons
 
 	resp, err := a.httpClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("execute token request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		return nil, fmt.Errorf("token request failed with status %s", resp.Status)
+		var apiErr struct {
+			ResponseCode    string `json:"responseCode"`
+			ResponseMessage string `json:"responseMessage"`
+		}
+
+		if err := json.NewDecoder(resp.Body).Decode(&apiErr); err != nil {
+			return nil, &errors.APIError{
+				HTTPStatusCode: resp.StatusCode,
+			}
+		}
+
+		return nil, &errors.APIError{
+			HTTPStatusCode:  resp.StatusCode,
+			ResponseCode:    apiErr.ResponseCode,
+			ResponseMessage: apiErr.ResponseMessage,
+		}
 	}
 
 	var token tokenResponse
 	if err := json.NewDecoder(resp.Body).Decode(&token); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decode token response: %w", err)
+	}
+
+	if token.AccessToken == "" {
+		return nil, fmt.Errorf("token response missing access_token")
 	}
 
 	return &token, nil

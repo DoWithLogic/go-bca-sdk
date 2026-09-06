@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,6 +11,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	bcaErrors "github.com/DoWithLogic/go-bca-sdk/errors"
 )
 
 func TestOAuth2Authenticator_Authenticate(t *testing.T) {
@@ -139,20 +142,43 @@ func TestOAuth2Authenticator_GetAccessToken_InvalidJSON(t *testing.T) {
 
 func TestOAuth2Authenticator_GetAccessToken_Unauthorized(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "invalid client", http.StatusUnauthorized)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+
+		_, _ = w.Write([]byte(`{
+			"responseCode": "401US00",
+			"responseMessage": "Unauthorized"
+		}`))
 	}))
 	defer server.Close()
 
-	authenticator := NewOAuth2Authenticator("client-id", "client-secret", server.Client(), server.URL)
+	authenticator := NewOAuth2Authenticator(
+		"client-id",
+		"client-secret",
+		server.Client(),
+		server.URL,
+	)
+
 	_, err := authenticator.getAccessToken(context.Background())
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
 
-	expected := "token request failed with status 401 Unauthorized"
+	var apiErr *bcaErrors.APIError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected *APIError, got %T", err)
+	}
 
-	if err.Error() != expected {
-		t.Errorf("expected error %q, got %q", expected, err.Error())
+	if apiErr.HTTPStatusCode != http.StatusUnauthorized {
+		t.Errorf("expected HTTP status %d, got %d", http.StatusUnauthorized, apiErr.HTTPStatusCode)
+	}
+
+	if apiErr.ResponseCode != "401US00" {
+		t.Errorf("expected response code %q, got %q", "401US00", apiErr.ResponseCode)
+	}
+
+	if apiErr.ResponseMessage != "Unauthorized" {
+		t.Errorf("expected response message %q, got %q", "Unauthorized", apiErr.ResponseMessage)
 	}
 }
 

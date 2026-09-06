@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/DoWithLogic/go-bca-sdk/errors"
 )
 
 type mockAuthenticator struct {
@@ -76,7 +78,7 @@ func TestClient_Do_NonSuccessStatus(t *testing.T) {
 		t.Fatal("expected error, got nil")
 	}
 
-	apiErr, ok := err.(*APIError)
+	apiErr, ok := err.(*errors.APIError)
 	if !ok {
 		t.Fatalf("expected *APIError, got %T", err)
 	}
