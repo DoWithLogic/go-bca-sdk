@@ -67,8 +67,7 @@ func (c *Client) Do(ctx context.Context, request Request, result any) error {
 			return err
 		}
 
-		if resp.StatusCode >= http.StatusOK &&
-			resp.StatusCode < http.StatusMultipleChoices {
+		if resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices {
 			defer resp.Body.Close()
 
 			if result == nil {
@@ -88,12 +87,26 @@ func (c *Client) Do(ctx context.Context, request Request, result any) error {
 			return err
 		}
 
-		if !c.retryPolicy.ShouldRetry(request.Method, resp.StatusCode) ||
-			attempt >= c.retryConfig.MaxRetries {
+		var apiError struct {
+			ResponseCode    string `json:"responseCode"`
+			ResponseMessage string `json:"responseMessage"`
+		}
+
+		if err := json.Unmarshal(responseBody, &apiError); err != nil {
+			// Response isn't valid BCA error JSON.
+			// Still return an APIError with the HTTP status.
+			if !c.retryPolicy.ShouldRetry(request.Method, resp.StatusCode) || attempt >= c.retryConfig.MaxRetries {
+				return &APIError{HTTPStatusCode: resp.StatusCode}
+			}
+
+			continue
+		}
+
+		if !c.retryPolicy.ShouldRetry(request.Method, resp.StatusCode) || attempt >= c.retryConfig.MaxRetries {
 			return &APIError{
-				StatusCode: resp.StatusCode,
-				Status:     resp.Status,
-				Body:       responseBody,
+				HTTPStatusCode:  resp.StatusCode,
+				ResponseCode:    apiError.ResponseCode,
+				ResponseMessage: apiError.ResponseMessage,
 			}
 		}
 
