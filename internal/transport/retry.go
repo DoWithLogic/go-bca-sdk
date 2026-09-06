@@ -15,14 +15,12 @@ type DefaultRetryPolicy struct{}
 
 // ShouldRetry return true for transient server errors.
 func (DefaultRetryPolicy) ShouldRetry(method string, statusCode int) bool {
-	if method != http.MethodGet &&
-		method != http.MethodHead &&
-		method != http.MethodPut &&
-		method != http.MethodDelete {
+	switch method {
+	case http.MethodGet, http.MethodHead:
+		return statusCode == http.StatusRequestTimeout || statusCode == http.StatusTooManyRequests || statusCode >= http.StatusInternalServerError
+	default:
 		return false
 	}
-
-	return statusCode == http.StatusRequestTimeout || statusCode == http.StatusTooManyRequests || statusCode >= http.StatusInternalServerError
 }
 
 // RetryConfig configures request retries.
