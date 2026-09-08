@@ -12,12 +12,7 @@ import (
 
 type mockAuthenticator struct{}
 
-func (mockAuthenticator) Authenticate(
-	ctx context.Context,
-	req *http.Request,
-) error {
-	return nil
-}
+func (mockAuthenticator) Authenticate(ctx context.Context, req *http.Request) error { return nil }
 
 func TestBusinessDebitCardService_CardStatusChange(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

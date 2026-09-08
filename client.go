@@ -4,6 +4,7 @@ import (
 	"github.com/DoWithLogic/go-bca-sdk/account_information"
 	"github.com/DoWithLogic/go-bca-sdk/business_debit_card"
 	"github.com/DoWithLogic/go-bca-sdk/internal/transport"
+	"github.com/DoWithLogic/go-bca-sdk/virtual_account"
 )
 
 // Client is the main client for interacting with the BCA API.
@@ -12,6 +13,7 @@ type Client struct {
 
 	AccountInformation *account_information.AccountInformationService
 	BusinessDebitCard  *business_debit_card.BusinessDebitCardService
+	VirtualAccount     *virtual_account.VirtualAccountService
 }
 
 // NewClient creates a new BCA API client using the provided options.
@@ -39,6 +41,7 @@ func NewClient(opts ...Option) (*Client, error) {
 		config:             cfg,
 		AccountInformation: account_information.NewAccountInformationService(transport),
 		BusinessDebitCard:  business_debit_card.NewBusinessDebitCardService(transport),
+		VirtualAccount:     virtual_account.NewVirtualAccountService(transport),
 	}
 
 	return client, nil
