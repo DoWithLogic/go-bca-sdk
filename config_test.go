@@ -8,7 +8,7 @@ import (
 	"github.com/DoWithLogic/go-bca-sdk/internal/auth"
 )
 
-func TestConfig_NewAuthenticator_BCA(t *testing.T) {
+func TestConfig_NewAuthenticator_OAUTH(t *testing.T) {
 	cfg := defaultConfig()
 
 	authenticator, err := cfg.newAuthenticator()
@@ -16,7 +16,7 @@ func TestConfig_NewAuthenticator_BCA(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if _, ok := authenticator.(*auth.BCAAuthenticator); !ok {
+	if _, ok := authenticator.(*auth.OAuth2Authenticator); !ok {
 		t.Fatalf("expected BCAAuthenticator, got %T", authenticator)
 	}
 }

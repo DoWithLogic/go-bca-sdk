@@ -1,15 +1,18 @@
 package auth
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/DoWithLogic/go-bca-sdk/errors"
+	"github.com/DoWithLogic/go-bca-sdk/internal/signature"
 )
 
 // OAuth2Authenticator authenticates HTTP requests using BCA OAuth 2.0 authentication.
@@ -19,6 +22,7 @@ import (
 type OAuth2Authenticator struct {
 	clientID     string
 	clientSecret string
+	apiSecret    string
 	tokenURL     string
 	httpClient   *http.Client
 
@@ -27,10 +31,11 @@ type OAuth2Authenticator struct {
 	token *token
 }
 
-func NewOAuth2Authenticator(clientID, clientSecret string, httpClient *http.Client, tokenURL string) *OAuth2Authenticator {
+func NewOAuth2Authenticator(clientID, clientSecret, apiSecret string, httpClient *http.Client, tokenURL string) *OAuth2Authenticator {
 	return &OAuth2Authenticator{
 		clientID:     clientID,
 		clientSecret: clientSecret,
+		apiSecret:    apiSecret,
 		httpClient:   httpClient,
 		tokenURL:     tokenURL,
 		now:          time.Now,
@@ -45,6 +50,22 @@ func (a *OAuth2Authenticator) Authenticate(ctx context.Context, req *http.Reques
 	}
 
 	req.Header.Set("Authorization", token.tokenType+" "+token.accessToken)
+
+	var body string
+	if req.Body != nil {
+		bodyBytes, err := io.ReadAll(req.Body)
+		if err != nil {
+			return err
+		}
+		body = string(bodyBytes)
+		req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	}
+
+	timestamp := a.now().Format(time.RFC3339Nano)
+	req.Header.Set("X-BCA-Timestamp", timestamp)
+
+	sig := signature.Sign(req.Method, req.URL.RequestURI(), token.accessToken, body, timestamp, a.apiSecret)
+	req.Header.Set("X-BCA-Signature", sig)
 
 	return nil
 }

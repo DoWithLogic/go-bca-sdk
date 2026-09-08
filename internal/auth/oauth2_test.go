@@ -27,7 +27,7 @@ func TestOAuth2Authenticator_Authenticate(t *testing.T) {
 	}))
 	defer server.Close()
 
-	authenticator := NewOAuth2Authenticator("client-id", "client-secret", server.Client(), server.URL)
+	authenticator := NewOAuth2Authenticator("client-id", "client-secret", "api-secret", server.Client(), server.URL)
 	req, err := http.NewRequest(http.MethodGet, "https://api.klikbca.com/api/oauth/token", nil)
 	if err != nil {
 		t.Fatalf("failed to create request: %v", err)
@@ -95,7 +95,7 @@ func TestOAuth2Authenticator_GetAccessToken(t *testing.T) {
 	}))
 	defer server.Close()
 
-	authenticator := NewOAuth2Authenticator("client-id", "client-secret", server.Client(), server.URL)
+	authenticator := NewOAuth2Authenticator("client-id", "client-secret", "api-secret", server.Client(), server.URL)
 	token, err := authenticator.getAccessToken(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -120,7 +120,7 @@ func TestOAuth2Authenticator_GetAccessToken_NonSuccessStatus(t *testing.T) {
 	}))
 	defer server.Close()
 
-	authenticator := NewOAuth2Authenticator("client-id", "client-secret", server.Client(), server.URL)
+	authenticator := NewOAuth2Authenticator("client-id", "client-secret", "api-secret", server.Client(), server.URL)
 	if _, err := authenticator.getAccessToken(context.Background()); err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -134,7 +134,7 @@ func TestOAuth2Authenticator_GetAccessToken_InvalidJSON(t *testing.T) {
 	}))
 	defer server.Close()
 
-	authenticator := NewOAuth2Authenticator("client-id", "client-secret", server.Client(), server.URL)
+	authenticator := NewOAuth2Authenticator("client-id", "client-secret", "api-secret", server.Client(), server.URL)
 	if _, err := authenticator.getAccessToken(context.Background()); err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -155,6 +155,7 @@ func TestOAuth2Authenticator_GetAccessToken_Unauthorized(t *testing.T) {
 	authenticator := NewOAuth2Authenticator(
 		"client-id",
 		"client-secret",
+		"api-secret",
 		server.Client(),
 		server.URL,
 	)
@@ -197,7 +198,7 @@ func TestOAuth2Authenticator_Authenticate_ReusesValidToken(t *testing.T) {
 	}))
 	defer server.Close()
 
-	authenticator := NewOAuth2Authenticator("client-id", "client-secret", server.Client(), server.URL)
+	authenticator := NewOAuth2Authenticator("client-id", "client-secret", "api-secret", server.Client(), server.URL)
 
 	for range 3 {
 		req, err := http.NewRequest(
@@ -240,7 +241,7 @@ func TestOAuth2Authenticator_Authenticate_RefreshesExpiredToken(t *testing.T) {
 	}))
 	defer server.Close()
 
-	authenticator := NewOAuth2Authenticator("client-id", "client-secret", server.Client(), server.URL)
+	authenticator := NewOAuth2Authenticator("client-id", "client-secret", "api-secret", server.Client(), server.URL)
 	authenticator.now = func() time.Time {
 		return currentTime
 	}
@@ -297,7 +298,7 @@ func TestOAuth2Authenticator_Authenticate_Concurrent(t *testing.T) {
 	}))
 	defer server.Close()
 
-	authenticator := NewOAuth2Authenticator("client-id", "client-secret", server.Client(), server.URL)
+	authenticator := NewOAuth2Authenticator("client-id", "client-secret", "api-secret", server.Client(), server.URL)
 
 	const requests = 100
 

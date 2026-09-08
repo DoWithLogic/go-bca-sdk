@@ -121,10 +121,7 @@ func (c Config) newAuthenticator() (auth.Authenticator, error) {
 			c.BaseURL+"/openapi/v1.0/access-token/b2b",
 		), nil
 	case AuthModeBCA:
-		return auth.NewBCAAuthenticator(
-			auth.NewOAuth2Authenticator(c.ClientID, c.ClientSecret, c.HTTPClient, c.BaseURL+"/api/oauth/token"),
-			c.APISecret,
-		), nil
+		return auth.NewOAuth2Authenticator(c.ClientID, c.ClientSecret, c.APISecret, c.HTTPClient, c.BaseURL+"/api/oauth/token"), nil
 	default:
 		return nil, fmt.Errorf("unsupported auth mode: %q", c.AuthMode)
 	}
